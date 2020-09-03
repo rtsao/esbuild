@@ -308,14 +308,30 @@ flatten:
 			// be used as the value for "this".
 			switch e := expr.Data.(type) {
 			case *ast.EDot:
-				targetFunc, wrapFunc := p.captureValueWithPossibleSideEffects(loc, 2, e.Target)
-				expr = ast.Expr{Loc: loc, Data: &ast.EDot{
-					Target:  targetFunc(),
-					Name:    e.Name,
-					NameLoc: e.NameLoc,
-				}}
-				thisArg = targetFunc()
-				targetWrapFunc = wrapFunc
+				if _, ok := e.Target.Data.(*ast.ESuper); ok {
+					targetFunc := func() ast.Expr {
+						return e.Target
+					}
+					wrapFunc := func(expr ast.Expr) ast.Expr {
+						return expr
+					}
+					expr = ast.Expr{Loc: loc, Data: &ast.EDot{
+						Target:  targetFunc(),
+						Name:    e.Name,
+						NameLoc: e.NameLoc,
+					}}
+					thisArg = ast.Expr{Loc: loc, Data: &ast.EThis{}}
+					targetWrapFunc = wrapFunc
+				} else {
+					targetFunc, wrapFunc := p.captureValueWithPossibleSideEffects(loc, 2, e.Target)
+					expr = ast.Expr{Loc: loc, Data: &ast.EDot{
+						Target:  targetFunc(),
+						Name:    e.Name,
+						NameLoc: e.NameLoc,
+					}}
+					thisArg = targetFunc()
+					targetWrapFunc = wrapFunc
+				}
 
 			case *ast.EIndex:
 				targetFunc, wrapFunc := p.captureValueWithPossibleSideEffects(loc, 2, e.Target)
